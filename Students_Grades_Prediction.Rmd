@@ -33,7 +33,7 @@ glimpse(grades)
 
 
 ```{r}
-is.null(grades)
+anyNA(grades)
 ```
 
 ```{r}
@@ -41,8 +41,8 @@ is.null(grades)
 library(reshape2)
 
 grades2 <- grades %>%
-  select(raisedhands, VisITedResources, AnnouncementsView, Discussion, Class)
-grades2_long <- melt(grades2)
+  dplyr::select(raisedhands, VisITedResources, AnnouncementsView, Discussion, Class)
+grades2_long <- reshape2::melt(grades2)
 ```
 
 ```{r}
@@ -177,7 +177,9 @@ confusionMatrix(predict_grades2, grades_actual, mode='everything')
 # Decision Tree ~ StudentAbsenceDays, raisedhands, VisITedResources, AnnouncementsView, Discussion, Relation, PlaceofBirth, Topic, GradeID
 ```{r}
 grades_f1 <- grades %>%
-  select(StudentAbsenceDays, raisedhands, VisITedResources, AnnouncementsView, Discussion, Relation, PlaceofBirth, Topic, GradeID, Class)
+  dplyr::select(StudentAbsenceDays, raisedhands, VisITedResources, AnnouncementsView, Discussion, Relation, PlaceofBirth, Topic, GradeID, Class)
+
+head(grades_f1)
 ```
 
 ```{r}
@@ -218,15 +220,17 @@ RNGkind(sample.kind = "Rounding")
 set.seed(123)
 bag_grades <- randomForest(Class~., data=train, importance=TRUE)
 bag_grades
-```
-```{r}
+
 predict_grades3 <- predict(bag_grades, newdata=test)
-importance(bag_grades)
-varImpPlot(bag_grades)
+importance(bag_grades, type=1, scale = F)
+#plot(imp)
+#varImpPlot(imp)
 ```
+
 ```{r}
-#grades_f2 <- grades %>%
-#  select(StudentAbsenceDays, raisedhands, VisITedResources, AnnouncementsView, Discussion, #Relation, PlaceofBirth, Topic, GradeID, gender, NationalITy, StageID, SectionID, ParentAnsweringSurvey, ParentschoolSatisfaction, Class)
+#remove Semester
+grades_f2 <- grades %>%
+  dplyr::select(-c(Semester))
 
 ```
 
@@ -234,20 +238,21 @@ varImpPlot(bag_grades)
 RNGkind(sample.kind = "Rounding")
 set.seed(123)
 
-#sample_index <- sample(1:nrow(grades_f2), size = floor(0.70*nrow(grades_f2)), replace = F)
-#train <- grades_f2[sample_index,]
-#test <- grades_f2[-sample_index,]
+sample_index <- sample(1:nrow(grades_f2), size = floor(0.70*nrow(grades_f2)), replace = F)
+train <- grades_f2[sample_index,]
+test <- grades_f2[-sample_index,]
 
-bag_grades1 <- randomForest(Class~.-Semester, data=train, importance=TRUE)
+bag_grades1 <- randomForest(Class~., data=train, importance=TRUE)
 bag_grades1
 
-importance(bag_grades1)
+importance(bag_grades1, type=1, scale = F)
 varImpPlot(bag_grades1)
 ```
 
 ```{r}
 RNGkind(sample.kind = "Rounding")
 set.seed(123)
+
 bag_grades2 <- randomForest(Class~.-StudentAbsenceDays, data=train, importance=TRUE)
 bag_grades2
 
