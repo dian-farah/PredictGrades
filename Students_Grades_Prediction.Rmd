@@ -21,6 +21,7 @@ library(randomForest)
 grades <- read.csv("xAPI-Edu-Data.csv", stringsAsFactors = T)
 grades$Class <- factor(grades$Class, levels = c("L", "M", "H"))
 head(grades, 10)
+dplyr::nrows(grades)
 ```
 
 ```{r}
@@ -142,7 +143,7 @@ sample_index <- sample(1:nrow(grades), size = floor(0.70*nrow(grades)), replace 
 train <- grades[sample_index,]
 test <- grades[-sample_index,]
 grades_actual <- test$Class
-head(train)
+dim(train)
 ```
 
 # Decision Tree ~ all features
@@ -223,8 +224,6 @@ bag_grades
 
 predict_grades3 <- predict(bag_grades, newdata=test)
 importance(bag_grades, type=1, scale = F)
-#plot(imp)
-#varImpPlot(imp)
 ```
 
 ```{r}
@@ -250,6 +249,8 @@ varImpPlot(bag_grades1)
 ```
 
 ```{r}
+#Remove StudentAbsenceDays
+
 RNGkind(sample.kind = "Rounding")
 set.seed(123)
 

@@ -1,0 +1,47 @@
+---
+title: "Students_Grades_Prediction_SVM"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(caret)
+library(e1071)
+```
+
+```{r}
+grades <- read.csv("xAPI-Edu-Data.csv", stringsAsFactors = T)
+grades <- grades %>%
+  dplyr::select(-Semester)
+head(grades)
+```
+
+```{r}
+summary(grades)
+```
+
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(123)
+sample_index <- sample(1:nrow(grades), size = floor(0.70*nrow(grades)), replace = F)
+train <- grades[sample_index,]
+test <- grades[-sample_index,]
+y <- test$Class
+
+svm1 <- svm(Class~., data=train, 
+          method="C-classification", kernal="radial", 
+          gamma=0.1, cost=10)
+```
+
+```{r}
+summary(svm1)
+```
+
+```{r}
+prediction <- predict(svm1, test)
+#xtab <- table(test$Class, prediction)
+confusionMatrix(prediction, test$Class, mode='everything')
+```
+
