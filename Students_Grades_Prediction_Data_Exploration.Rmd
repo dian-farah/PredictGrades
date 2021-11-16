@@ -1,0 +1,134 @@
+---
+title: "Students' Grades Prediction Data Exploration"
+output: html_notebook
+---
+
+The data used in this analysis is from https://www.kaggle.com/aljarah/xAPI-Edu-Data.
+
+# attaching relevant libraries
+```{r}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(tree)
+library(caret)
+library(randomForest)
+```
+
+# Data Exploration
+
+```{r}
+grades <- read.csv("xAPI-Edu-Data.csv", stringsAsFactors = T)
+grades$Class <- factor(grades$Class, levels = c("L", "M", "H"))
+head(grades, 10)
+```
+
+```{r}
+summary(grades)
+```
+
+```{r}
+glimpse(grades)
+```
+
+
+```{r}
+anyNA(grades)
+```
+
+```{r}
+#what is value
+library(reshape2)
+
+grades2 <- grades %>%
+  dplyr::select(raisedhands, VisITedResources, AnnouncementsView, Discussion, Class)
+grades2_long <- reshape2::melt(grades2)
+```
+
+```{r}
+#what is value - rename value
+ggplot(grades2_long,aes(x= Class,y=value))+
+  geom_boxplot(aes(fill=variable)) +
+  ggtitle("Frequency of raised hands, visited resources, viewed announcements, & participate in discussions for each Grade") +
+  theme(plot.title = element_text(size = 8, face="bold"))+
+  xlab("Grades") +
+  ylab("Frequency")
+```
+
+```{r}
+#distribution of raisedhands
+dist1 <- ggplot(data=grades2, aes(raisedhands)) + 
+  geom_histogram(bins=30) +
+  ggtitle("Distribution of raised hands")
+```
+
+```{r}
+dist2 <- ggplot(data=grades2, aes(VisITedResources)) + 
+  geom_histogram(bins=30) +
+  ggtitle("Distribution of visited resources")
+```
+
+```{r}
+dist3 <- ggplot(data=grades2, aes(AnnouncementsView)) + 
+  geom_histogram(bins=30) +
+  ggtitle("Distribution of view announcements")
+```
+
+```{r}
+dist4 <- ggplot(data=grades2, aes(Discussion)) + 
+  geom_histogram(bins=30) +
+  ggtitle("Distribution of discussion participation")
+```
+
+
+```{r}
+grid.arrange(dist1, dist2, dist3, dist4, nrow=2)
+```
+
+
+```{r}
+ggplot(grades, aes(x=StudentAbsenceDays, fill=StudentAbsenceDays))+
+  geom_bar() +
+  facet_wrap(~Class)
+```
+
+```{r}
+ggplot(grades, aes(x=StageID, fill=StageID))+
+  geom_bar() +
+  facet_wrap(~Class)
+```
+
+```{r}
+ggplot(grades, aes(fill=Class, x=NationalITy))+
+  geom_bar(position="stack") +
+  coord_flip()
+```
+
+```{r}
+ggplot(grades, aes(fill=ParentschoolSatisfaction, x=NationalITy))+
+  geom_bar(position="stack") +
+  coord_flip()
+```
+
+```{r}
+ggplot(grades, aes(x=ParentschoolSatisfaction, fill=ParentschoolSatisfaction))+
+  geom_bar() +
+  facet_wrap(~Class)
+```
+
+```{r}
+ggplot(grades, aes(x=Topic))+
+  geom_bar() +
+  coord_flip()
+```
+
+```{r}
+ggplot(grades, aes(fill=Topic, x=Class))+
+  geom_bar(position="stack")
+```
+
+```{r}
+ggplot(grades, aes(fill=Class, x=Topic))+
+  geom_bar(position="stack") +
+  coord_flip()
+```

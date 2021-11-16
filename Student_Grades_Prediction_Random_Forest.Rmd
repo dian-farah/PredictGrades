@@ -1,0 +1,72 @@
+---
+title: "Students_Grades_Prediction_Random_Forest"
+output: html_document
+---
+
+# attaching relevant libraries
+```{r}
+library(dplyr)
+library(caret)
+library(randomForest)
+```
+
+```{r}
+grades <- read.csv("xAPI-Edu-Data.csv", stringsAsFactors = T)
+grades$Class <- factor(grades$Class, levels = c("L", "M", "H"))
+head(grades, 10)
+```
+
+# Bagging and Random Forest ~ all features
+```{r}
+#sample data 70%
+RNGkind(sample.kind = "Rounding")
+set.seed(123)
+sample_index <- sample(1:nrow(grades), size = floor(0.70*nrow(grades)), replace = F)
+train <- grades[sample_index,]
+test <- grades[-sample_index,]
+grades_actual <- test$Class
+dim(train)
+```
+
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(123)
+bag_grades <- randomForest(Class~., data=train, importance=TRUE)
+bag_grades
+
+#predict_grades3 <- predict(bag_grades, newdata=test)
+importance(bag_grades, type=1, scale = F)
+```
+
+# Bagging and Random Forest ~ remove StudentAbsenceDays
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(123)
+
+bag_grades2 <- randomForest(Class~.-StudentAbsenceDays, data=train, importance=TRUE)
+bag_grades2
+
+importance(bag_grades1, type=1, scale = F)
+#varImpPlot(bag_grades1)
+```
+
+# Bagging and Random Forest ~ remove Semester
+```{r}
+grades_f2 <- grades %>%
+  dplyr::select(-c(Semester))
+```
+
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(123)
+
+sample_index <- sample(1:nrow(grades_f2), size = floor(0.70*nrow(grades_f2)), replace = F)
+train <- grades_f2[sample_index,]
+test <- grades_f2[-sample_index,]
+
+bag_grades1 <- randomForest(Class~., data=train, importance=TRUE)
+bag_grades1
+
+importance(bag_grades1, type=1, scale = F)
+#varImpPlot(bag_grades1)
+```
