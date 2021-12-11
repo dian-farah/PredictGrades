@@ -9,6 +9,7 @@ library(ggplot2)
 library(gridExtra)
 library(caret)
 library(e1071)
+library(splitstackshape)
 ```
 
 ```{r}
@@ -27,6 +28,7 @@ RNGkind(sample.kind = "Rounding")
 set.seed(123)
 sample_index <- sample(1:nrow(grades), size = floor(0.70*nrow(grades)), replace = F)
 train <- grades[sample_index,]
+summary(train)
 test <- grades[-sample_index,]
 y <- test$Class
 
