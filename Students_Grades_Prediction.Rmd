@@ -1,0 +1,209 @@
+---
+title: "Students' Grades Prediction"
+output: html_notebook
+---
+
+The data used in this analysis is from https://www.kaggle.com/aljarah/xAPI-Edu-Data.
+
+# Data Pre-Processing
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+```
+
+```{r}
+grades <- read.csv("xAPI-Edu-Data.csv", stringsAsFactors = T)
+grades$Class <- factor(grades$Class, levels = c("L", "M", "H"))
+head(grades, 10)
+```
+
+```{r}
+summary(grades)
+```
+
+```{r}
+glimpse(grades)
+```
+
+
+```{r}
+anyNA(grades)
+```
+
+There are no missing values in the dataframe.
+
+```{r}
+grades_cleaned <- grades %>%
+  rename(RaisedHands = raisedhands, VisitedResources = VisITedResources, AnnouncementsViewed = AnnouncementsView, Nationality = NationalITy, Education = StageID, GradeLevel = GradeID, Classroom = SectionID, Grade = Class)
+head(grades_cleaned)
+```
+
+Their distributions are mainly bimodal but we won't know if it will negatively impact the model until we train it.
+
+```{r}
+dist1 <- ggplot(data=grades_cleaned, aes(RaisedHands)) + 
+  geom_histogram(bins=30) +
+  ggtitle("Distribution of raised hands")
+```
+
+```{r}
+dist2 <- ggplot(data=grades_cleaned, aes(VisitedResources)) + 
+  geom_histogram(bins=30) +
+  ggtitle("Distribution of visited resources")
+```
+
+```{r}
+dist3 <- ggplot(data=grades_cleaned, aes(AnnouncementsViewed)) + 
+  geom_histogram(bins=30) +
+  ggtitle("Distribution of view announcements")
+```
+
+```{r}
+dist4 <- ggplot(data=grades_cleaned, aes(Discussion)) + 
+  geom_histogram(bins=30) +
+  ggtitle("Distribution of discussion participation")
+```
+
+
+```{r}
+grid.arrange(dist1, dist2, dist3, dist4, nrow=2)
+```
+
+```{r}
+library(caret)
+```
+
+```{r}
+#sample data 70%
+RNGkind(sample.kind = "Rounding")
+set.seed(123)
+sample_index <- sample(1:nrow(grades_cleaned), size = floor(0.70*nrow(grades_cleaned)), replace = F)
+train <- grades_cleaned[sample_index,]
+test <- grades_cleaned[-sample_index,]
+grades_actual <- test$Grade
+head(train)
+glimpse(train)
+```
+
+The different grade categories are currently unbalanced. We would have do oversampling as the number of training samples are very little (336).
+
+```{r}
+table(train$Grade)
+ggplot(train, aes(fill=Grade, x=Grade)) +
+  geom_bar() +
+  ggtitle("Proportion of each Grade")
+```
+
+
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(123)
+x <- train%>%select(-Grade)
+y <- train$Grade
+up_train <- upSample(x = x, y = y)                         
+table(up_train$Class)
+ggplot(up_train, aes(fill=Class, x=Class)) +
+  geom_bar() +
+  ggtitle("Proportion of each Grade")
+```
+The classes are now balanced.
+
+# Decision Tree
+
+```{r}
+library(tree)
+```
+
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(123)
+grades_tree <- tree(Class~., up_train)
+cv_grades <- cv.tree(grades_tree, FUN=prune.misclass)
+optimal_nodes <- cv_grades$size[which.min(cv_grades$dev)]
+prune_grades <- prune.misclass(grades_tree, best = optimal_nodes)
+```
+
+```{r}
+predict_gradestree <- predict(prune_grades, newdata=test, type="class")
+confusionMatrix(predict_gradestree, grades_actual, mode='everything')
+```
+Decision Tree gives an accuracy score of 68.06% and the lowest F1 score of 61.73% from class H (students with highest range scores).
+
+# Random Forest (Bagging)
+
+```{r}
+library(randomForest)
+```
+
+```{r}
+#training the model
+RNGkind(sample.kind = "Rounding")
+set.seed(123)
+grades_rf <- randomForest(Class~., data=up_train, importance=TRUE)
+grades_rf
+importance(grades_rf, type=1, scale = F)
+varImpPlot(grades_rf)
+```
+
+The training model has an estimated error of 15.02%. This means that the estimated accuracy would be around 84.98%. 
+
+According to the Mean Decrease Accuracy graph, the top 3 most important variables that can negatively impact the accuracy of the model are the number of days students are absent (StudentAbsenceDays), the number of times students visited resources (VisitedResources), and the number of times students raised their hands and participate in class (RaisedHands).
+
+The 3 least important variables are which class students are in (Classroom), their education level (Education) and the semester (Semester).
+
+```{r}
+#test the model
+predict_gradesrf <- predict(grades_rf, newdata=test)
+confusionMatrix(predict_gradesrf, grades_actual, mode='everything')
+```
+
+When the model is applied to the test data, the accuracy score is 74.31%. This suggests that there might be a degree of overfitting occurring when training. Looking at the F1 score, the model predicts students with the highest grades (M) the least accurate (72.18%).
+
+# Random Forest (Gradient Boosting)
+```{r}
+library(gbm)
+```
+
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(123)
+grades_boost <- gbm(Class ~ . ,data = up_train, distribution = "multinomial", n.trees = 500, shrinkage = 0.01, interaction.depth = 4)
+grades_boost
+summary(grades_boost)
+```
+
+According to the variable importance table, the 3 most important and 3 least important variables remain unchanged compared to Random Forest (Bagging). However, the order of the 3 most important variables differ where VisitedResources is the most important instead of StudentAbsenceDays.
+
+```{r}
+predict_gradesboost <- predict(grades_boost, test)
+predictions <- colnames(predict_gradesboost)[apply(predict_gradesboost, 1, which.max)]
+confusionMatrix(as.factor(predictions), grades_actual, mode='everything')
+```
+
+The overall accuracy is 70.14% with the lowest F1 score of 67.18% for class M, students who got medium range scores.
+
+# Support Vector Machine (SVM)
+
+```{r}
+library(e1071)
+```
+
+```{r}
+RNGkind(sample.kind = "Rounding")
+set.seed(123)
+grades_svm <- svm(Class~., data=up_train, 
+          method="C-classification", kernal="radial", 
+          gamma=0.1, cost=10)
+summary(grades_svm)
+predict_gradessvm <- predict(grades_svm, test)
+confusionMatrix(predict_gradessvm, grades_actual, mode='everything')
+```
+
+The accuracy of SVM is slightly better than Random Forest with a score of 79.86%. It is able to predict class H a lot better too with an F1 score of 79.07%.
+
+# Conclusion
+The best model to predict students' grade classes is SVM with the highest accuracy score of 79.07%. It is able to predict class L, students with the lowest range scores, the best with an F1 score of 82.54%. It has difficulties in predicting class H, students with the highest range scores, with the lowest F1 score of 79.07%.
+
+The 3 most important features in predicting students' grade classes will be StudentAbsenceDays, VisitedResources and RaisedHands, according to the feature importance from Random Forest (Bagging) and Random Forest (Gradient Boosting). These features will most likely be of high importance in SVM too.
